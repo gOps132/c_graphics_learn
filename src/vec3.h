@@ -4,8 +4,6 @@
 #include <cmath>
 #include <iostream>
 
-using std::sqrt;
-
 class vec3 {
     public:
         vec3() : e{0,0,0} {}
@@ -37,10 +35,12 @@ class vec3 {
             return *this *= 1/t;
         }
 
+        // sqrt(x^2 + y^2 + z^2)
         double length() const {
             return sqrt(length_squared());
         }
 
+        // x^2 + y^2 + z^2
         double length_squared() const {
             return e[0]*e[0] + e[1]*e[1] + e[2]*e[2];
         }
