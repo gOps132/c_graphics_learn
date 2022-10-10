@@ -11,6 +11,8 @@ add_subdirectory(lib/glm)
 
 set(C_GRAPHICS_LEARN_SOURCES 
     src/main.cpp
+    src/sphere.cpp
+    src/hittable_list.cpp
 )
 
 add_executable(c_graphics_learn ${C_GRAPHICS_LEARN_SOURCES})
