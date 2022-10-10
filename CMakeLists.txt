@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD 17)
 # add_subdirectory(lib/glfw)
 add_subdirectory(lib/glm)
 
+
 set(C_GRAPHICS_LEARN_SOURCES 
     src/main.cpp
 )
