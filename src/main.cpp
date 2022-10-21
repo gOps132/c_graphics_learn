@@ -8,6 +8,8 @@
 #include "hittable_list.h"
 #include "sphere.h"
 
+#include "camera.h"
+
 
 color ray_color(const ray& r, const hittable& world) {
     hit_record rec;
@@ -21,30 +23,33 @@ color ray_color(const ray& r, const hittable& world) {
 
 int main(int argc, char** argv) 
 {
-    constexpr int image_width = 400;
+    // constexpr int image_width = 1080;
 
     // Image
-    const auto aspect_ratio = 16.0 / 9.0;
-    const int image_height = static_cast<int>(image_width / aspect_ratio);
+    // const auto aspect_ratio = 16.0 / 9.0;
+    // const int image_height = static_cast<int>(image_width / aspect_ratio);
 
     // World
     hittable_list world;
     world.add(std::make_shared<sphere>(point3(0,0,-1), 0.5));
     world.add(std::make_shared<sphere>(point3(0,-100.5,-1), 100));
 
-    // Camera
-    auto viewport_height = 2.0;
-    auto viewport_width = aspect_ratio * viewport_height;
-    auto focal_length = 1.0;
+    Camera default_cam;
 
-    auto origin = point3(0, 0, 0);
-    auto horizontal = vec3(viewport_width, 0, 0);
-    auto vertical = vec3(0, viewport_height, 0);
-    auto lower_left_corner = origin - horizontal/2 - vertical/2 - vec3(0, 0, focal_length);
+    // Camera
+    // auto viewport_height = 2.0;
+    // auto viewport_width = aspect_ratio * viewport_height;
+    // auto focal_length = 1.0;
+
+    // auto origin = point3(0, 0, 0);
+    // auto horizontal = vec3(viewport_width, 0, 0);
+    // auto vertical = vec3(0, viewport_height, 0);
+    // auto lower_left_corner = origin - horizontal/2 - vertical/2 - vec3(0, 0, focal_length);
+
     std::cout << "Lower Left Corner: \n" 
-            << "x = " << lower_left_corner.x() 
-            << "\n" << "y = " << lower_left_corner.y() << "\n" 
-            << "z = " << lower_left_corner.z() << "\n";
+            << "x = " << default_cam.lower_left_corner.x() 
+            << "\n" << "y = " << default_cam.lower_left_corner.y() << "\n" 
+            << "z = " << default_cam.lower_left_corner.z() << "\n";
 
     std::ofstream output_file;
     output_file.open([&](){
@@ -55,16 +60,16 @@ int main(int argc, char** argv)
             return "default.ppm";
         }
     }());
-    output_file << "P3\n" << image_width << ' ' << image_height << "\n255\n";
+    output_file << "P3\n" << default_cam.image_width << ' ' << default_cam.image_height << "\n255\n";
 
     // Render
-    for (int j = image_height-1; j >= 0; --j) {
+    for (int j = default_cam.image_height-1; j >= 0; --j) {
         std::cerr << "\rScanlines remaining: " << j << ' ' << std::flush;
-        for (int i = 0; i < image_width; ++i) {
-            auto u = double(i) / (image_width-1);
-            auto v = double(j) / (image_height-1);
+        for (int i = 0; i < default_cam.image_width; ++i) {
+            auto u = double(i) / (default_cam.image_width-1);
+            auto v = double(j) / (default_cam.image_height-1);
 
-            ray r(origin, lower_left_corner + u*horizontal + v*vertical - origin);
+            ray r(default_cam.origin, default_cam.lower_left_corner + u*default_cam.horizontal + v*default_cam.vertical - default_cam.origin);
             color pixel_color = ray_color(r, world);
             write_color(output_file, pixel_color);
         }
