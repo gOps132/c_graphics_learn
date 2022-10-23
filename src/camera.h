@@ -21,36 +21,37 @@ private:
     vec3 lower_left_corner = origin - horizontal/2 - vertical/2 - vec3(0, 0, focal_length);
 
 public:
-    Camera();
     Camera(
         int p_image_width,
         double p_aspect_ratio,
         double p_viewport_height,
         double p_focal_length,
         vec3 p_origin
-    ) 
+    )
     : 
         image_width(p_image_width), 
         aspect_ratio(p_aspect_ratio),
         viewport_height(p_viewport_height),
         focal_length(p_focal_length),
         origin(p_origin)
-    {}
-    ~Camera();
+    {
+        
+    }
+    ~Camera() {}
 
-    const int get_image_width() const { return image_width; }
+    int get_image_width() { return image_width; }
 
-    const double get_aspect_ratio() const { return aspect_ratio; }
-    const int get_image_height() const { return image_height; }
+    double get_aspect_ratio() { return aspect_ratio; }
+    int get_image_height() { return image_height; }
 
-    const double get_viewport_height() const { return viewport_height; }
-    const double get_viewport_width() const { return viewport_width; }
-    const double get_focal_length() const { return focal_length; }
+    double get_viewport_height() { return viewport_height; }
+    double get_viewport_width() { return viewport_width; }
+    double get_focal_length() { return focal_length; }
 
-    const vec3 get_origin() const { return origin };
-    const vec3 get_horizontal() const { return horizontal; }
-    const vec3 get_vertical() const { return vertical; }
-    const vec3 get_lower_left_corner() const { return lower_left_corner; }
+    vec3 get_origin() { return origin; }
+    vec3 get_horizontal() { return horizontal; }
+    vec3 get_vertical() { return vertical; }
+    vec3 get_lower_left_corner() { return lower_left_corner; }
 };
 
 #endif // __CAMERA_H__
