@@ -9,7 +9,7 @@ private:
     int image_width = 1000;
 
     double aspect_ratio = 16 / 9;
-    int image_height = image_width / (int)aspect_ratio;
+    int image_height = static_cast<int>(image_width / aspect_ratio);
 
     double viewport_height  = 2.0;
     double viewport_width = aspect_ratio * viewport_height;

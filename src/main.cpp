@@ -23,15 +23,9 @@ color ray_color(const ray& r, const hittable& world) {
 	return (1.0-t)*color(1.0, 1.0, 1.0) + t*color(0.5, 0.7, 1.0);
 }
 
-unsigned long createRGBA(int r, int g, int b, int a)
-{   
-    return ((r & 0xff) << 24) + ((g & 0xff) << 16) + ((b & 0xff) << 8)
-           + (a & 0xff);
-}
-
 int main(int argc, char** argv) 
 {
-	constexpr int IMAGE_WIDTH = 200;
+	constexpr int IMAGE_WIDTH = 1000;
 
 	// Image
 	constexpr auto ASPECT_RATIO = 16.0 / 9.0;
@@ -49,7 +43,7 @@ int main(int argc, char** argv)
 		"raytacing demo",
 		SDL_WINDOWPOS_CENTERED,
 		SDL_WINDOWPOS_CENTERED,
-		IMAGE_WIDTH * 4, IMAGE_HEIGHT * 4,
+		IMAGE_WIDTH, IMAGE_HEIGHT,
 		SDL_WINDOW_RESIZABLE);
 		
 	if (!window)
@@ -108,7 +102,7 @@ int main(int argc, char** argv)
 
 		Uint32 pixels[IMAGE_WIDTH * IMAGE_HEIGHT] = {0};
 
-		// std::fill_n(pixels, IMAGE_WIDTH * IMAGE_HEIGHT, 0xA3C8FF);
+		std::fill_n(pixels, IMAGE_WIDTH * IMAGE_HEIGHT, 0xA3C8FF);
 
 // 		render pixels
 //		right to left or left o right?
@@ -129,16 +123,14 @@ int main(int argc, char** argv)
 				color pixel_color = ray_color(r, world);
 
 				// TODO: convert rgb vector to hexadecimal cast to integer
-				// TODO: Map pixel color to pixels properly
-				
-				// pixels[j+i] = createRGBA(
-				// 	(int)pixel_color.x(),
-				// 	(int)pixel_color.y(),
-				// 	(int)pixel_color.z(),
-				// 	0
-				// );
+				// TODO: Map pixel color to pixels properly				
+				pixels[i + (j*IMAGE_HEIGHT)] = (
+					static_cast<int>(255.999 * pixel_color.x()) << 16 |
+					static_cast<int>(255.999 * pixel_color.y()) << 8 |
+					static_cast<int>(255.999 * pixel_color.z())
+				);
 
-				pixels[i] = (int)0xA3C8FF;
+				// pixels[i] = (int)0xA3C8FF;
 
 				// write to file for debug
 				write_color(output_file, pixel_color);
