@@ -124,7 +124,7 @@ int main(int argc, char** argv)
 
 				// TODO: convert rgb vector to hexadecimal cast to integer
 				// TODO: Map pixel color to pixels properly				
-				pixels[i + (j*IMAGE_HEIGHT)] = (
+				pixels[i + (j*IMAGE_WIDTH)] = (
 					static_cast<int>(255.999 * pixel_color.x()) << 16 |
 					static_cast<int>(255.999 * pixel_color.y()) << 8 |
 					static_cast<int>(255.999 * pixel_color.z())
