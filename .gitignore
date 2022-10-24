@@ -5,6 +5,8 @@ out/
 cmake-build-debug/
 .vs/
 
+*.ppm
+
 #
 imgui.ini
 
@@ -40,5 +42,3 @@ imgui.ini
 *.exe
 *.out
 *.app
-
-*.ppm
