@@ -105,8 +105,9 @@ int main(int argc, char** argv)
 		std::fill_n(pixels, IMAGE_WIDTH * IMAGE_HEIGHT, 0xA3C8FF);
 
 // 		render pixels
-//		right to left or left o right?
+//		top left to right then down
 		for (int j = default_cam.get_image_height()-1; j >= 0; --j) {
+		// for (int j = 0; j < default_cam.get_image_height() - 1; ++j) {
 			// check if image is done rendering 
 			std::cerr << "\r Scanlines remaining:" << j << ' ' << std::flush;
 
@@ -124,7 +125,7 @@ int main(int argc, char** argv)
 
 				// TODO: convert rgb vector to hexadecimal cast to integer
 				// TODO: Map pixel color to pixels properly				
-				pixels[i + (j*IMAGE_WIDTH)] = (
+				pixels[i + (j*IMAGE_WIDTH)] = ( 
 					static_cast<int>(255.999 * pixel_color.x()) << 16 |
 					static_cast<int>(255.999 * pixel_color.y()) << 8 |
 					static_cast<int>(255.999 * pixel_color.z())
@@ -139,6 +140,7 @@ int main(int argc, char** argv)
 
 		SDL_UpdateTexture(texture, nullptr, pixels, IMAGE_WIDTH * 4);
 		SDL_RenderCopy(renderer, texture, nullptr, nullptr);
+		SDL_RenderCopyEx(renderer, texture, nullptr, nullptr, 0, nullptr, SDL_FLIP_VERTICAL);
 		SDL_RenderPresent(renderer);
 
 	}
