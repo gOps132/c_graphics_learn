@@ -44,7 +44,7 @@ color ray_color(const ray& r, const hittable& world, int depth) {
 int main(int argc, char** argv) 
 {
 	// Image Constants
-	constexpr int IMAGE_WIDTH = 500;
+	constexpr int IMAGE_WIDTH = 200;
 	constexpr auto ASPECT_RATIO = 16.0 / 9.0;
 	constexpr int IMAGE_HEIGHT = static_cast<int>(IMAGE_WIDTH / ASPECT_RATIO);
 
@@ -113,16 +113,16 @@ int main(int argc, char** argv)
 	Uint32 pixels[IMAGE_WIDTH * IMAGE_HEIGHT] = {0};
 
 
-	std::atomic<int> concurrent_thread_render_line_01 = (IMAGE_HEIGHT-1);
-	std::atomic<int> concurrent_thread_render_line_02 = (IMAGE_HEIGHT-1);
+	std::atomic<int> concurrent_thread_render_line_01{IMAGE_HEIGHT-1};
+	std::atomic<int> concurrent_thread_render_line_02{0};
 
-	std::atomic<bool> can_run = true;
+	std::atomic<bool> concurrent_thread_run = true;
 
 	std::thread concurrent_render1([&](){
-	//		std::fill_n(pixels, IMAGE_WIDTH * IMAGE_HEIGHT, 0xA3C8FF);
-	//		top left to right then down
-		for (int j = (IMAGE_HEIGHT-1); j >= ((IMAGE_HEIGHT-1) / 2); --j) {
-			// std::cerr << "\n\r Scanlines remaining:" << j << ' ' << std::flush;
+		//	top left to right then down
+		for (int j = concurrent_thread_render_line_01.load(); concurrent_thread_run.load(); --j ) {
+			// implement sig_exit
+			concurrent_thread_render_line_01.store(j);
 
 			for (int i = 0; i < IMAGE_WIDTH; ++i) {
 					color pixel_color(0,0,0);
@@ -139,10 +139,10 @@ int main(int argc, char** argv)
 	});
 
 	std::thread concurrent_render2([&](){
-	//		std::fill_n(pixels, IMAGE_WIDTH * IMAGE_HEIGHT, 0xA3C8FF);
-	//		top left to right then down
-		for (int j = 0; j < ((IMAGE_HEIGHT-1)/2); ++j) {
-			// std::cerr << "\n\r Scanlines remaining:" << j << ' ' << std::flush;
+		//	bottom then up
+		for (int j = concurrent_thread_render_line_02.load(); concurrent_thread_run.load(); ++j) {
+			// implement sig_exit
+			concurrent_thread_render_line_02.store(j);
 
 			for (int i = 0; i < IMAGE_WIDTH; ++i) {
 					color pixel_color(0,0,0);
@@ -160,6 +160,18 @@ int main(int argc, char** argv)
 
 	for (bool interrupt = false; !interrupt;)
 	{
+		//	calculate scan lines
+		std::atomic<int> remainding_lines(concurrent_thread_render_line_01.load() - concurrent_thread_render_line_02.load());
+		if (remainding_lines == 0) {
+			concurrent_thread_run.store(false);
+			std::cerr << "\r Render Done." << std::flush;
+			// break;
+		} else {
+			std::cerr << "\r Scanlines remaining 1: " << concurrent_thread_render_line_01 
+			<< " 2: " << concurrent_thread_render_line_02 << std::flush;
+		}
+
+
 		SDL_Event ev;
 		while (SDL_PollEvent(&ev))
 			switch (ev.type)
@@ -168,6 +180,7 @@ int main(int argc, char** argv)
 				interrupt = true;
 				break;
 			}
+		
 		// render pixels
 		SDL_UpdateTexture(texture, nullptr, pixels, IMAGE_WIDTH * 4);
 		SDL_RenderCopy(renderer, texture, nullptr, nullptr);
@@ -175,6 +188,7 @@ int main(int argc, char** argv)
 		SDL_RenderPresent(renderer);
 	}
 	
+	// TODO: Fix thread join issue
 	output_file.close();
 	concurrent_render1.join();
 	concurrent_render2.join();
