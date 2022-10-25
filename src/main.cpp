@@ -13,11 +13,26 @@
 
 #include "SDL.h"
 
-color ray_color(const ray& r, const hittable& world) {
+vec3 random_in_unit_sphere() {
+    while (true) {
+        auto p = random(-1,1);
+        if (p.length_squared() >= 1) continue;
+        return p;
+    }
+}
+
+color ray_color(const ray& r, const hittable& world, int depth) {
 	hit_record rec;
+
+    // If we've exceeded the ray bounce limit, no more light is gathered.
+    if (depth <= 0)
+        return color(0,0,0);
+		
 	if (world.hit(r, 0, infinity, rec)) {
-		return 0.5 * (rec.normal + color(1,1,1));
+        point3 target = rec.p + rec.normal + random_in_unit_sphere();
+        return 0.5 * ray_color(ray(rec.p, target - rec.p), world, depth-1);
 	}
+
 	vec3 unit_direction = unit_vector(r.get_direction());
 	auto t = 0.5*(unit_direction.y() + 1.0);
 	return (1.0-t)*color(1.0, 1.0, 1.0) + t*color(0.5, 0.7, 1.0);
@@ -31,6 +46,7 @@ int main(int argc, char** argv)
 	constexpr int IMAGE_HEIGHT = static_cast<int>(IMAGE_WIDTH / ASPECT_RATIO);
 
     constexpr int SAMPLES_PER_PIXEL = 100;
+    constexpr int MAX_DEPTH = 50;
 
 	// World
 	hittable_list world;
@@ -95,7 +111,6 @@ int main(int argc, char** argv)
 
 	std::thread concurrent_render([&](){
 	//		std::fill_n(pixels, IMAGE_WIDTH * IMAGE_HEIGHT, 0xA3C8FF);
-	//		render pixels
 	//		top left to right then down
 		for (int j = IMAGE_HEIGHT-1; j >= 0; --j) {
 			std::cerr << "\r Scanlines remaining:" << j << ' ' << std::flush;
@@ -106,7 +121,7 @@ int main(int argc, char** argv)
 						auto u = (i + random_double()) / (IMAGE_WIDTH-1);
 						auto v = (j + random_double()) / (IMAGE_HEIGHT-1);
 						ray r = default_cam.get_ray(u,v);
-						pixel_color += ray_color(r, world);
+                		pixel_color += ray_color(r, world, MAX_DEPTH);
 					} 
 					pixels[i + (j*IMAGE_WIDTH)] = write_color(pixel_color, SAMPLES_PER_PIXEL);
 					write_color_to_file(output_file, pixel_color, SAMPLES_PER_PIXEL);
@@ -114,11 +129,8 @@ int main(int argc, char** argv)
 			}
 	});
 
-	// Render
 	for (bool interrupt = false; !interrupt;)
 	{
-	/*** TODO: Poll for the events in the main thread and sending 
-	 the event to my event thread to be processed ***/
 		SDL_Event ev;
 		while (SDL_PollEvent(&ev))
 			switch (ev.type)
@@ -127,13 +139,13 @@ int main(int argc, char** argv)
 				interrupt = true;
 				break;
 			}
-
+		// render pixels
 		SDL_UpdateTexture(texture, nullptr, pixels, IMAGE_WIDTH * 4);
 		SDL_RenderCopy(renderer, texture, nullptr, nullptr);
 		SDL_RenderCopyEx(renderer, texture, nullptr, nullptr, 0, nullptr, SDL_FLIP_VERTICAL);
 		SDL_RenderPresent(renderer);
 	}
-
+	
 	output_file.close();
 	concurrent_render.join();
 
