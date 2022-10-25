@@ -44,7 +44,7 @@ color ray_color(const ray& r, const hittable& world, int depth) {
 int main(int argc, char** argv) 
 {
 	// Image Constants
-	constexpr int IMAGE_WIDTH = 200;
+	constexpr int IMAGE_WIDTH = 500;
 	constexpr auto ASPECT_RATIO = 16.0 / 9.0;
 	constexpr int IMAGE_HEIGHT = static_cast<int>(IMAGE_WIDTH / ASPECT_RATIO);
 
