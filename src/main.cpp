@@ -15,6 +15,7 @@
 #include "camera.h"
 
 #include "SDL.h"
+#include <ZProf/ZyklonProfiler.h>
 
 vec3 random_in_unit_sphere() {
     while (true) {
@@ -160,6 +161,7 @@ int main(int argc, char** argv)
 
 	for (bool interrupt = false; !interrupt;)
 	{
+		
 		//	calculate scan lines
 		std::atomic<int> remainding_lines(concurrent_thread_render_line_01.load() - concurrent_thread_render_line_02.load());
 		if (remainding_lines == 0) {
@@ -187,7 +189,6 @@ int main(int argc, char** argv)
 		SDL_RenderCopyEx(renderer, texture, nullptr, nullptr, 0, nullptr, SDL_FLIP_VERTICAL);
 		SDL_RenderPresent(renderer);
 	}
-	
 	// TODO: Fix thread join issue
 	output_file.close();
 	concurrent_render1.join();

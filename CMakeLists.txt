@@ -11,6 +11,7 @@ set( SDL_SHARED OFF CACHE BOOL "" FORCE )
 
 add_subdirectory(lib/glm)
 add_subdirectory(lib/SDL2)
+add_subdirectory(lib/ZyklonProfiler)
 
 set(C_GRAPHICS_LEARN_SOURCES 
     src/main.cpp
@@ -32,4 +33,5 @@ target_link_libraries(c_graphics_learn
     PRIVATE     glm
     PUBLIC      SDL2main 
 	PUBLIC      SDL2-static
+    PUBLIC      zyklon_profiler
 )
