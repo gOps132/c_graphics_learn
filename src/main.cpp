@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <fstream> 
 #include <string>
-
+#include <thread>
 #include "color.h"
 #include "rt_utility.h"
 
@@ -25,11 +25,26 @@ color ray_color(const ray& r, const hittable& world) {
 
 int main(int argc, char** argv) 
 {
-	constexpr int IMAGE_WIDTH = 1000;
-
-	// Image
+	// Image Constants
+	constexpr int IMAGE_WIDTH = 500;
 	constexpr auto ASPECT_RATIO = 16.0 / 9.0;
 	constexpr int IMAGE_HEIGHT = static_cast<int>(IMAGE_WIDTH / ASPECT_RATIO);
+
+    constexpr int SAMPLES_PER_PIXEL = 100;
+
+	// World
+	hittable_list world;
+	world.add(std::make_shared<sphere>(point3(0,0,-1), 0.5));
+	world.add(std::make_shared<sphere>(point3(0,-100.5,-1), 100));
+
+	// Initialize Camera
+	Camera default_cam (
+		IMAGE_WIDTH,
+		ASPECT_RATIO,
+		2.0,
+		1.0,
+		point3(0, 0, 0)
+	);
 
 	// intialize sdl subsystems
 	if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
@@ -54,19 +69,6 @@ int main(int argc, char** argv)
 
 	SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
 
-	// World
-	hittable_list world;
-	world.add(std::make_shared<sphere>(point3(0,0,-1), 0.5));
-	world.add(std::make_shared<sphere>(point3(0,-100.5,-1), 100));
-
-	Camera default_cam (
-		IMAGE_WIDTH,
-		ASPECT_RATIO,
-		2.0,
-		1.0,
-		point3(0, 0, 0)
-	);
-
 	std::cout << "Lower Left Corner: \n" 
 			<< "x = " << default_cam.get_lower_left_corner().x()
 			<< "\n" << "y = " << default_cam.get_lower_left_corner().y() << "\n" 
@@ -81,16 +83,42 @@ int main(int argc, char** argv)
 			return "default.ppm";
 		}
 	}());
-	output_file << "P3\n" << default_cam.get_image_width() << ' ' << default_cam.get_image_height() << "\n255\n";
+
+	output_file << "P3\n" << IMAGE_WIDTH << ' ' << IMAGE_HEIGHT << "\n255\n";
 
 	SDL_Texture *texture = SDL_CreateTexture(
 		renderer,
 		SDL_PIXELFORMAT_ARGB8888,
 		SDL_TEXTUREACCESS_STREAMING, IMAGE_WIDTH, IMAGE_HEIGHT);
 
+	Uint32 pixels[IMAGE_WIDTH * IMAGE_HEIGHT] = {0};
+
+	std::thread concurrent_render([&](){
+	//		std::fill_n(pixels, IMAGE_WIDTH * IMAGE_HEIGHT, 0xA3C8FF);
+	//		render pixels
+	//		top left to right then down
+		for (int j = IMAGE_HEIGHT-1; j >= 0; --j) {
+			std::cerr << "\r Scanlines remaining:" << j << ' ' << std::flush;
+
+			for (int i = 0; i < IMAGE_WIDTH; ++i) {
+					color pixel_color(0,0,0);
+					for (int s = 0; s < SAMPLES_PER_PIXEL; ++s) {
+						auto u = (i + random_double()) / (IMAGE_WIDTH-1);
+						auto v = (j + random_double()) / (IMAGE_HEIGHT-1);
+						ray r = default_cam.get_ray(u,v);
+						pixel_color += ray_color(r, world);
+					} 
+					pixels[i + (j*IMAGE_WIDTH)] = write_color(pixel_color, SAMPLES_PER_PIXEL);
+					write_color_to_file(output_file, pixel_color, SAMPLES_PER_PIXEL);
+				}
+			}
+	});
+
 	// Render
 	for (bool interrupt = false; !interrupt;)
 	{
+	/*** TODO: Poll for the events in the main thread and sending 
+	 the event to my event thread to be processed ***/
 		SDL_Event ev;
 		while (SDL_PollEvent(&ev))
 			switch (ev.type)
@@ -100,51 +128,15 @@ int main(int argc, char** argv)
 				break;
 			}
 
-		Uint32 pixels[IMAGE_WIDTH * IMAGE_HEIGHT] = {0};
-
-		std::fill_n(pixels, IMAGE_WIDTH * IMAGE_HEIGHT, 0xA3C8FF);
-
-// 		render pixels
-//		top left to right then down
-		for (int j = default_cam.get_image_height()-1; j >= 0; --j) {
-		// for (int j = 0; j < default_cam.get_image_height() - 1; ++j) {
-			// check if image is done rendering 
-			std::cerr << "\r Scanlines remaining:" << j << ' ' << std::flush;
-
-			for (int i = 0; i < default_cam.get_image_width(); ++i) {
-				auto u = double(i) / (default_cam.get_image_width()-1);
-				auto v = double(j) / (default_cam.get_image_height()-1);
-
-				ray r(default_cam.get_origin(),
-					default_cam.get_lower_left_corner() + 
-					u*default_cam.get_horizontal() + 
-					v*default_cam.get_vertical() - 
-					default_cam.get_origin()
-				);
-				color pixel_color = ray_color(r, world);
-
-				// TODO: convert rgb vector to hexadecimal cast to integer
-				// TODO: Map pixel color to pixels properly				
-				pixels[i + (j*IMAGE_WIDTH)] = ( 
-					static_cast<int>(255.999 * pixel_color.x()) << 16 |
-					static_cast<int>(255.999 * pixel_color.y()) << 8 |
-					static_cast<int>(255.999 * pixel_color.z())
-				);
-
-				// pixels[i] = (int)0xA3C8FF;
-
-				// write to file for debug
-				write_color(output_file, pixel_color);
-			}
-		}
-
 		SDL_UpdateTexture(texture, nullptr, pixels, IMAGE_WIDTH * 4);
 		SDL_RenderCopy(renderer, texture, nullptr, nullptr);
 		SDL_RenderCopyEx(renderer, texture, nullptr, nullptr, 0, nullptr, SDL_FLIP_VERTICAL);
 		SDL_RenderPresent(renderer);
-
 	}
+
 	output_file.close();
+	concurrent_render.join();
+
 	std::cerr << "\nDone.\n";
 	
 	//test

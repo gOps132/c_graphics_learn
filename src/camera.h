@@ -38,6 +38,10 @@ public:
         
     }
     ~Camera() {}
+    
+	ray get_ray(double u, double v) const {
+        return ray(origin, lower_left_corner + u*horizontal + v*vertical - origin);
+    }
 
     int get_image_width() { return image_width; }
 
