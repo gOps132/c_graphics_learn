@@ -3,6 +3,9 @@
 #include <fstream> 
 #include <string>
 #include <thread>
+#include <mutex>
+#include <atomic>
+
 #include "color.h"
 #include "rt_utility.h"
 
@@ -109,11 +112,37 @@ int main(int argc, char** argv)
 
 	Uint32 pixels[IMAGE_WIDTH * IMAGE_HEIGHT] = {0};
 
-	std::thread concurrent_render([&](){
+
+	std::atomic<int> concurrent_thread_render_line_01 = (IMAGE_HEIGHT-1);
+	std::atomic<int> concurrent_thread_render_line_02 = (IMAGE_HEIGHT-1);
+
+	std::atomic<bool> can_run = true;
+
+	std::thread concurrent_render1([&](){
 	//		std::fill_n(pixels, IMAGE_WIDTH * IMAGE_HEIGHT, 0xA3C8FF);
 	//		top left to right then down
-		for (int j = IMAGE_HEIGHT-1; j >= 0; --j) {
-			std::cerr << "\r Scanlines remaining:" << j << ' ' << std::flush;
+		for (int j = (IMAGE_HEIGHT-1); j >= ((IMAGE_HEIGHT-1) / 2); --j) {
+			// std::cerr << "\n\r Scanlines remaining:" << j << ' ' << std::flush;
+
+			for (int i = 0; i < IMAGE_WIDTH; ++i) {
+					color pixel_color(0,0,0);
+					for (int s = 0; s < SAMPLES_PER_PIXEL; ++s) {
+						auto u = (i + random_double()) / (IMAGE_WIDTH-1);
+						auto v = (j + random_double()) / (IMAGE_HEIGHT-1);
+						ray r = default_cam.get_ray(u,v);
+                		pixel_color += ray_color(r, world, MAX_DEPTH);
+					} 
+					pixels[i + (j*IMAGE_WIDTH)] = write_color(pixel_color, SAMPLES_PER_PIXEL);
+					write_color_to_file(output_file, pixel_color, SAMPLES_PER_PIXEL);
+				}
+			}
+	});
+
+	std::thread concurrent_render2([&](){
+	//		std::fill_n(pixels, IMAGE_WIDTH * IMAGE_HEIGHT, 0xA3C8FF);
+	//		top left to right then down
+		for (int j = 0; j < ((IMAGE_HEIGHT-1)/2); ++j) {
+			// std::cerr << "\n\r Scanlines remaining:" << j << ' ' << std::flush;
 
 			for (int i = 0; i < IMAGE_WIDTH; ++i) {
 					color pixel_color(0,0,0);
@@ -147,7 +176,8 @@ int main(int argc, char** argv)
 	}
 	
 	output_file.close();
-	concurrent_render.join();
+	concurrent_render1.join();
+	concurrent_render2.join();
 
 	std::cerr << "\nDone.\n";
 	
