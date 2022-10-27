@@ -15,7 +15,11 @@
 #include "camera.h"
 
 #include "SDL.h"
-#include <ZProf/ZyklonProfiler.h>
+
+/**
+ * Hot fix, "fixed" segmentation fault issue by having texture buffer render 
+ * when it's compeletely ready, unfortunately no fancy animations
+*/
 
 vec3 random_in_unit_sphere() {
     while (true) {
@@ -111,8 +115,7 @@ int main(int argc, char** argv)
 		SDL_PIXELFORMAT_ARGB8888,
 		SDL_TEXTUREACCESS_STREAMING, IMAGE_WIDTH, IMAGE_HEIGHT);
 
-	Uint32 pixels[IMAGE_WIDTH * IMAGE_HEIGHT] = {0};
-
+	Uint32 pixel_buffer[IMAGE_WIDTH * IMAGE_HEIGHT] = {0};
 
 	std::atomic<int> concurrent_thread_render_line_01{IMAGE_HEIGHT-1};
 	std::atomic<int> concurrent_thread_render_line_02{0};
@@ -133,7 +136,7 @@ int main(int argc, char** argv)
 						ray r = default_cam.get_ray(u,v);
                 		pixel_color += ray_color(r, world, MAX_DEPTH);
 					} 
-					pixels[i + (j*IMAGE_WIDTH)] = write_color(pixel_color, SAMPLES_PER_PIXEL);
+					pixel_buffer[i + (j*IMAGE_WIDTH)] = write_color(pixel_color, SAMPLES_PER_PIXEL);
 					write_color_to_file(output_file, pixel_color, SAMPLES_PER_PIXEL);
 				}
 			}
@@ -153,19 +156,20 @@ int main(int argc, char** argv)
 						ray r = default_cam.get_ray(u,v);
                 		pixel_color += ray_color(r, world, MAX_DEPTH);
 					} 
-					pixels[i + (j*IMAGE_WIDTH)] = write_color(pixel_color, SAMPLES_PER_PIXEL);
+					pixel_buffer[i + (j*IMAGE_WIDTH)] = write_color(pixel_color, SAMPLES_PER_PIXEL);
 					write_color_to_file(output_file, pixel_color, SAMPLES_PER_PIXEL);
 				}
 			}
 	});
 
+	static bool render_finish = false;
+
 	for (bool interrupt = false; !interrupt;)
 	{
-		
-		//	calculate scan lines
 		std::atomic<int> remainding_lines(concurrent_thread_render_line_01.load() - concurrent_thread_render_line_02.load());
 		if (remainding_lines == 0) {
 			concurrent_thread_run.store(false);
+			render_finish = true;
 			std::cerr << "\r Render Done." << std::flush;
 			// break;
 		} else {
@@ -182,12 +186,16 @@ int main(int argc, char** argv)
 				break;
 			}
 		
-		// render pixels
-		SDL_UpdateTexture(texture, nullptr, pixels, IMAGE_WIDTH * 4);
-		SDL_RenderCopy(renderer, texture, nullptr, nullptr);
-		SDL_RenderCopyEx(renderer, texture, nullptr, nullptr, 0, nullptr, SDL_FLIP_VERTICAL);
-		SDL_RenderPresent(renderer);
+		if (render_finish)
+		{
+			// render pixels
+			SDL_UpdateTexture(texture, nullptr, pixel_buffer, IMAGE_WIDTH * 4);
+			SDL_RenderCopy(renderer, texture, nullptr, nullptr);
+			SDL_RenderCopyEx(renderer, texture, nullptr, nullptr, 0, nullptr, SDL_FLIP_VERTICAL);
+			SDL_RenderPresent(renderer);
+		}
 	}
+
 	// TODO: Fix thread join issue
 	output_file.close();
 	concurrent_render1.join();

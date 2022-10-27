@@ -4,6 +4,3 @@
 [submodule "lib/SDL2"]
 	path = lib/SDL2
 	url = https://github.com/libsdl-org/SDL.git
-[submodule "lib/ZykonProfiler"]
-	path = lib/ZykonProfiler
-	url = git@github.com:gOps132/ZyklonProfiler.git
