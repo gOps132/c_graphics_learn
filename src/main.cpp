@@ -173,7 +173,6 @@ int main(int argc, char** argv)
 			<< " 2: " << concurrent_thread_render_line_02 << std::flush;
 		}
 
-
 		SDL_Event ev;
 		while (SDL_PollEvent(&ev))
 			switch (ev.type)
