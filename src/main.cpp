@@ -2,9 +2,9 @@
 #include <algorithm>
 #include <fstream> 
 #include <string>
-#include <thread>
-#include <mutex>
 #include <atomic>
+#include <mutex>
+#include <thread>
 
 #include "color.h"
 #include "rt_utility.h"
@@ -15,11 +15,6 @@
 #include "camera.h"
 
 #include "SDL.h"
-
-/**
- * Hot fix, "fixed" segmentation fault issue by having texture buffer render 
- * when it's compeletely ready, unfortunately no fancy animations
-*/
 
 vec3 random_in_unit_sphere() {
     while (true) {
@@ -49,32 +44,18 @@ color ray_color(const ray& r, const hittable& world, int depth) {
 int main(int argc, char** argv) 
 {
 	// Image Constants
-	constexpr int IMAGE_WIDTH = 500;
+	constexpr int IMAGE_WIDTH = 50;
 	constexpr auto ASPECT_RATIO = 16.0 / 9.0;
 	constexpr int IMAGE_HEIGHT = static_cast<int>(IMAGE_WIDTH / ASPECT_RATIO);
 
     constexpr int SAMPLES_PER_PIXEL = 100;
     constexpr int MAX_DEPTH = 50;
 
-	// World
-	hittable_list world;
-	world.add(std::make_shared<sphere>(point3(0,0,-1), 0.5));
-	world.add(std::make_shared<sphere>(point3(0,-100.5,-1), 100));
-
-	// Initialize Camera
-	Camera default_cam (
-		IMAGE_WIDTH,
-		ASPECT_RATIO,
-		2.0,
-		1.0,
-		point3(0, 0, 0)
-	);
-
 	// intialize sdl subsystems
 	if (SDL_Init(SDL_INIT_EVERYTHING) < 0)
 	{
 		std::cout << "Failed to initialize the SDL2 library\n";
-
+		
 		return -1;
 	}
 
@@ -90,6 +71,20 @@ int main(int argc, char** argv)
 		std::cout << "Failed to create window\n";
 		return -1;
 	}
+
+	// World
+	hittable_list world;
+	world.add(std::make_shared<sphere>(point3(0,0,-1), 0.5));
+	world.add(std::make_shared<sphere>(point3(0,-100.5,-1), 100));
+
+	// Initialize Camera
+	Camera default_cam (
+		IMAGE_WIDTH,
+		ASPECT_RATIO,
+		2.0,
+		1.0,
+		point3(0, 0, 0)
+	);
 
 	SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
 
@@ -115,91 +110,49 @@ int main(int argc, char** argv)
 		SDL_PIXELFORMAT_ARGB8888,
 		SDL_TEXTUREACCESS_STREAMING, IMAGE_WIDTH, IMAGE_HEIGHT);
 
-	Uint32 pixel_buffer[IMAGE_WIDTH * IMAGE_HEIGHT] = {0};
+	Uint32 pixel_buffer[IMAGE_WIDTH * IMAGE_HEIGHT];
 
-	std::atomic<int> concurrent_thread_render_line_01{IMAGE_HEIGHT-1};
-	std::atomic<int> concurrent_thread_render_line_02{0};
+	std::atomic<bool> ready{false};
 
-	std::atomic<bool> concurrent_thread_run = true;
-
-	std::thread concurrent_render1([&](){
-		//	top left to right then down
-		for (int j = concurrent_thread_render_line_01.load(); concurrent_thread_run.load(); --j ) {
-			// implement sig_exit
-			concurrent_thread_render_line_01.store(j);
-
+	std::thread render_image_thread([&](){
+		//	top left to bottom
+		for (int j = IMAGE_HEIGHT-1; j > 0; --j ) {
 			for (int i = 0; i < IMAGE_WIDTH; ++i) {
-					color pixel_color(0,0,0);
-					for (int s = 0; s < SAMPLES_PER_PIXEL; ++s) {
-						auto u = (i + random_double()) / (IMAGE_WIDTH-1);
-						auto v = (j + random_double()) / (IMAGE_HEIGHT-1);
-						ray r = default_cam.get_ray(u,v);
-                		pixel_color += ray_color(r, world, MAX_DEPTH);
-					} 
-					pixel_buffer[i + (j*IMAGE_WIDTH)] = write_color(pixel_color, SAMPLES_PER_PIXEL);
-					write_color_to_file(output_file, pixel_color, SAMPLES_PER_PIXEL);
-				}
+				color pixel_color(0,0,0);
+				for (int s = 0; s < SAMPLES_PER_PIXEL; ++s) {
+					auto u = (i + random_double()) / (IMAGE_WIDTH-1);
+					auto v = (j + random_double()) / (IMAGE_HEIGHT-1);
+					ray r = default_cam.get_ray(u,v);
+					pixel_color += ray_color(r, world, MAX_DEPTH);
+				} 
+				std::cerr << "\r lines left: " << j << std::flush;
+
+				pixel_buffer[i + (j*IMAGE_WIDTH)] = write_color(pixel_color, SAMPLES_PER_PIXEL);
+				write_color_to_file(output_file, pixel_color, SAMPLES_PER_PIXEL);
 			}
+		}
+		ready.store(true);
 	});
-
-	std::thread concurrent_render2([&](){
-		//	bottom then up
-		for (int j = concurrent_thread_render_line_02.load(); concurrent_thread_run.load(); ++j) {
-			// implement sig_exit
-			concurrent_thread_render_line_02.store(j);
-
-			for (int i = 0; i < IMAGE_WIDTH; ++i) {
-					color pixel_color(0,0,0);
-					for (int s = 0; s < SAMPLES_PER_PIXEL; ++s) {
-						auto u = (i + random_double()) / (IMAGE_WIDTH-1);
-						auto v = (j + random_double()) / (IMAGE_HEIGHT-1);
-						ray r = default_cam.get_ray(u,v);
-                		pixel_color += ray_color(r, world, MAX_DEPTH);
-					} 
-					pixel_buffer[i + (j*IMAGE_WIDTH)] = write_color(pixel_color, SAMPLES_PER_PIXEL);
-					write_color_to_file(output_file, pixel_color, SAMPLES_PER_PIXEL);
-				}
-			}
-	});
-
-	static bool render_finish = false;
 
 	for (bool interrupt = false; !interrupt;)
 	{
-		std::atomic<int> remainding_lines(concurrent_thread_render_line_01.load() - concurrent_thread_render_line_02.load());
-		if (remainding_lines == 0) {
-			concurrent_thread_run.store(false);
-			render_finish = true;
-			std::cerr << "\r Render Done." << std::flush;
-			// break;
-		} else {
-			std::cerr << "\r Scanlines remaining 1: " << concurrent_thread_render_line_01 
-			<< " 2: " << concurrent_thread_render_line_02 << std::flush;
-		}
-
 		SDL_Event ev;
 		while (SDL_PollEvent(&ev))
 			switch (ev.type)
 			{
-			case SDL_QUIT:
-				interrupt = true;
-				break;
+				case SDL_QUIT:
+					interrupt = true;
+					break;
 			}
-		
-		if (render_finish)
-		{
-			// render pixels
-			SDL_UpdateTexture(texture, nullptr, pixel_buffer, IMAGE_WIDTH * 4);
-			SDL_RenderCopy(renderer, texture, nullptr, nullptr);
-			SDL_RenderCopyEx(renderer, texture, nullptr, nullptr, 0, nullptr, SDL_FLIP_VERTICAL);
-			SDL_RenderPresent(renderer);
-		}
+
+		SDL_UpdateTexture(texture, nullptr, pixel_buffer, IMAGE_WIDTH * 4);
+		SDL_RenderCopy(renderer, texture, nullptr, nullptr);
+		SDL_RenderCopyEx(renderer, texture, nullptr, nullptr, 0, nullptr, SDL_FLIP_VERTICAL);
+		SDL_RenderPresent(renderer);
 	}
 
-	// TODO: Fix thread join issue
+	render_image_thread.join();
 	output_file.close();
-	concurrent_render1.join();
-	concurrent_render2.join();
 
 	std::cerr << "\nDone.\n";
 	
@@ -207,7 +160,8 @@ int main(int argc, char** argv)
 	std::cout   << "ARGC COUNT: " << argc << "\n" 
 				<< "ARGV COUNT: " << argv[1];
 
-	SDL_Delay(1000 / 60);
+	SDL_Delay(3000);
+	SDL_Quit();
 
 	return 0;
 }

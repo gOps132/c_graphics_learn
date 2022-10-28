@@ -43,14 +43,14 @@ public:
         return ray(origin, lower_left_corner + u*horizontal + v*vertical - origin);
     }
 
-    int get_image_width() { return image_width; }
+    // int get_image_width() { return image_width; }
 
-    double get_aspect_ratio() { return aspect_ratio; }
-    int get_image_height() { return image_height; }
+    // double get_aspect_ratio() { return aspect_ratio; }
+    // int get_image_height() { return image_height; }
 
-    double get_viewport_height() { return viewport_height; }
-    double get_viewport_width() { return viewport_width; }
-    double get_focal_length() { return focal_length; }
+    // double get_viewport_height() { return viewport_height; }
+    // double get_viewport_width() { return viewport_width; }
+    // double get_focal_length() { return focal_length; }
 
     vec3 get_origin() { return origin; }
     vec3 get_horizontal() { return horizontal; }
